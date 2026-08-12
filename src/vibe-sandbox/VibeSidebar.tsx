@@ -214,7 +214,7 @@ export const VibeSidebar: React.FC<VibeSidebarProps> = ({
       {/* Mobile Backdrop overlay */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity"
+          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] transition-opacity"
           onClick={onClose}
         />
       )}
@@ -222,8 +222,10 @@ export const VibeSidebar: React.FC<VibeSidebarProps> = ({
       {/* Sidebar Panel */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 w-72 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-r border-zinc-200 dark:border-zinc-800/80 flex flex-col shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:static md:z-30 md:w-64 md:shrink-0"
+          "fixed top-0 bottom-0 left-0 z-[1010] w-72 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-r border-zinc-200 dark:border-zinc-800/80 flex flex-col shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out",
+          isOpen 
+            ? "translate-x-0 md:sticky md:top-24 md:h-[calc(100vh-7rem)] md:z-30 md:w-64 md:shrink-0" 
+            : "-translate-x-full md:translate-x-0 md:sticky md:top-24 md:h-[calc(100vh-7rem)] md:z-30 md:w-64 md:shrink-0"
         )}
       >
         {/* Sidebar Header */}

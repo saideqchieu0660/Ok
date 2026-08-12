@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Users, UserPlus, BookOpen, BarChart3, Plus, Trash2, 
-  Settings, ChevronRight, Copy, Check, Clock, Play
+  Settings, ChevronRight, Copy, Check, Clock, Play, Folder, FolderOpen
 } from "lucide-react";
 import { store, Deck } from "../lib/store";
 import { Link } from "react-router-dom";
@@ -12,6 +12,7 @@ import { getCreatorLabel } from "../utils/xp";
 import { StickyNav } from "../components/StickyNav";
 import { isFeatureEnabled } from "../features.config";
 import { VibeStickyStudyNav, VibeNavGroup } from "./VibeStickyStudyNav";
+import { cn } from "../lib/utils";
 
 interface VibeClass {
   id: string;
@@ -31,6 +32,7 @@ export const VibeClasses: React.FC = () => {
   const [newClassDesc, setNewClassDesc] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string>('');
+  const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const observerCallback: IntersectionObserverCallback = (entries) => {
@@ -84,13 +86,48 @@ export const VibeClasses: React.FC = () => {
 
   useEffect(() => {
     const loadedClasses = localStorage.getItem("vibe_classes");
+    let parsedClasses: VibeClass[] = [];
     if (loadedClasses) {
-      setClasses(JSON.parse(loadedClasses));
+      try {
+        parsedClasses = JSON.parse(loadedClasses);
+      } catch (e) {
+        console.error("Error parsing local classes", e);
+      }
     }
-  }, []);
+
+    const hasLocalSystemClass = parsedClasses.some(c => c.id === "class-local-system");
+    const isLocalWithoutFirebase = !currentUser;
+
+    if (isLocalWithoutFirebase && !hasLocalSystemClass) {
+      const defaultSystemClass: VibeClass = {
+        id: "class-local-system",
+        name: "Lớp Học Hệ Thống (Local Sandbox)",
+        description: "Lớp học mẫu hoạt động cục bộ được tạo sẵn cho việc chạy thử nghiệm ngoại tuyến khi không kết nối Firebase.",
+        createdBy: "anonymous",
+        members: [
+          { id: "anonymous", name: "Anonymous Teacher (Giáo viên)", role: 'admin' },
+          { id: currentUserId, name: currentUserName, role: 'student' }
+        ],
+        deckIds: []
+      };
+
+      const localDecks = store.getDecks();
+      if (localDecks && localDecks.length > 0) {
+        defaultSystemClass.deckIds = localDecks.slice(0, 2).map(d => d.id);
+      }
+
+      parsedClasses = [defaultSystemClass, ...parsedClasses];
+      setClasses(parsedClasses);
+      localStorage.setItem("vibe_classes", JSON.stringify(parsedClasses));
+    } else {
+      setClasses(parsedClasses);
+    }
+  }, [currentUser, currentUserId, currentUserName]);
 
   useEffect(() => {
-    localStorage.setItem("vibe_classes", JSON.stringify(classes));
+    if (classes.length > 0) {
+      localStorage.setItem("vibe_classes", JSON.stringify(classes));
+    }
   }, [classes]);
 
   const handleCreateClass = (e: React.FormEvent) => {
@@ -325,24 +362,95 @@ export const VibeClasses: React.FC = () => {
                         <p className="text-zinc-500">Chưa có học phần nào được thêm vào lớp này.</p>
                       </div>
                     ) : (
-                      activeClass.deckIds.map(deckId => {
-                        const deck = store.getDecks().find(d => d.id === deckId);
-                        if (!deck) return null;
+                      (() => {
+                        const grouped: Record<string, Deck[]> = {};
+                        activeClass.deckIds.forEach(deckId => {
+                          const deck = store.getDecks().find(d => d.id === deckId);
+                          if (!deck) return;
+                          const subject = deck.subject || "Chung";
+                          if (!grouped[subject]) {
+                            grouped[subject] = [];
+                          }
+                          grouped[subject].push(deck);
+                        });
+
+                        const subjects = Object.keys(grouped);
+
                         return (
-                          <div key={deckId} id={`deck-${activeClass.id}-${deckId}`} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:border-orange-500/50 transition">
-                            <div>
-                              <h4 className="font-bold text-lg mb-1">{deck.title}</h4>
-                              <div className="flex gap-3 text-xs text-zinc-500 font-medium">
-                                <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">{deck.cards?.length || 0} thẻ</span>
-                                <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">{deck.subject || "Chung"}</span>
-                              </div>
-                            </div>
-                            <Link to={`/study/${deck.id}`} className="p-3 bg-orange-500/10 text-orange-600 rounded-full hover:bg-orange-500/20 transition">
-                              <Play className="w-5 h-5" />
-                            </Link>
+                          <div className="space-y-3">
+                            {subjects.map(subject => {
+                              const decksInSubject = grouped[subject];
+                              const isExpanded = !!expandedSubjects[subject];
+
+                              return (
+                                <div key={subject} className="border border-zinc-150 dark:border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-50/30 dark:bg-zinc-900/10">
+                                  {/* Tiêu đề phân mục */}
+                                  <button
+                                    onClick={() => {
+                                      setExpandedSubjects(prev => ({
+                                        ...prev,
+                                        [subject]: !prev[subject]
+                                      }));
+                                    }}
+                                    className="w-full flex items-center justify-between p-3.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition text-left cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-orange-500/10 text-orange-600 rounded-lg">
+                                        {isExpanded ? <FolderOpen className="w-4 h-4 text-orange-500" /> : <Folder className="w-4 h-4 text-orange-500" />}
+                                      </div>
+                                      <div>
+                                        <h4 className="font-bold text-sm capitalize text-zinc-800 dark:text-zinc-200">
+                                          Phân mục: {subject}
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-500 font-medium">
+                                          {decksInSubject.length} học phần
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <ChevronRight className={cn(
+                                      "w-4 h-4 text-zinc-400 transition-transform duration-200",
+                                      isExpanded && "rotate-90"
+                                    )} />
+                                  </button>
+
+                                  {/* Danh sách học phần con */}
+                                  <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden border-t border-zinc-100 dark:border-zinc-800/50"
+                                      >
+                                        <div className="p-3 bg-zinc-50/10 dark:bg-zinc-950/20 space-y-2">
+                                          {decksInSubject.map(deck => (
+                                            <div 
+                                              key={deck.id} 
+                                              id={`deck-${activeClass.id}-${deck.id}`} 
+                                              className="flex items-center justify-between p-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-orange-500/40 transition shadow-sm"
+                                            >
+                                              <div>
+                                                <h5 className="font-bold text-xs text-zinc-800 dark:text-zinc-200">{deck.title}</h5>
+                                                <div className="flex gap-2 text-[10px] text-zinc-500 font-semibold mt-0.5">
+                                                  <span className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{deck.cards?.length || 0} thẻ</span>
+                                                </div>
+                                              </div>
+                                              <Link to={`/study/${deck.id}`} className="p-2 bg-orange-500/10 text-orange-600 rounded-full hover:bg-orange-500/20 transition active:scale-95">
+                                                <Play className="w-3.5 h-3.5" />
+                                              </Link>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
-                      })
+                      })()
                     )}
                   </div>
                 </div>

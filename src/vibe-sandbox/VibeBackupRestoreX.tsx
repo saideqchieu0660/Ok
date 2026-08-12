@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { get, set } from 'idb-keyval';
 import { Save, RotateCcw, AlertTriangle, X, DatabaseBackup } from 'lucide-react';
@@ -105,100 +106,131 @@ export function VibeBackupRestoreX({ deckId, deckTitle, cards, onRestored, class
     <div className={cn("relative", className)}>
       <button
         onClick={handleOpen}
-        className="flex items-center justify-center p-2 rounded-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-800/40 text-purple-600 dark:text-purple-400 transition-colors"
+        className="flex items-center justify-center p-2 rounded-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-800/40 text-purple-600 dark:text-purple-400 transition-colors cursor-pointer"
         title="Sao lưu/Khôi phục thẻ đánh dấu X"
       >
         <DatabaseBackup className="w-5 h-5" />
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isOpen && (
             <motion.div
+              key="backup-portal-wrapper"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsOpen(false);
-                setIsConfirmingRestore(false);
-              }}
-              className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="absolute right-0 top-full mt-2 w-64 z-50 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+              className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
             >
-              <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-                <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200">Snapshots Thẻ X</span>
-                <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded">
-                  <X className="w-4 h-4 text-zinc-500" />
-                </button>
-              </div>
-
-              <div className="p-2 space-y-1">
-                <button
-                  onClick={handleBackup}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-400 transition-colors text-left"
-                >
-                  <Save className="w-4 h-4" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold">Lưu trạng thái hiện tại</span>
-                    <span className="text-xs opacity-80">Sẽ ghi đè bản sao lưu cũ</span>
+              <motion.div
+                key="backup-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsConfirmingRestore(false);
+                }}
+                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                key="backup-content"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden z-10"
+              >
+                <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/20">
+                  <div className="flex items-center gap-2">
+                    <DatabaseBackup className="w-5 h-5 text-purple-500" />
+                    <span className="font-extrabold text-base text-zinc-900 dark:text-zinc-100">Snapshots Thẻ X</span>
                   </div>
-                </button>
+                  <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors cursor-pointer">
+                    <X className="w-4 h-4 text-zinc-500" />
+                  </button>
+                </div>
 
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+                <div className="p-4 space-y-3">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed mb-1">
+                    Quản lý trạng thái các thẻ học được đánh dấu khó (thẻ X) của bộ học trình <strong className="text-zinc-700 dark:text-zinc-300">"{deckTitle}"</strong>.
+                  </div>
 
-                {!isConfirmingRestore ? (
                   <button
-                    onClick={() => setIsConfirmingRestore(true)}
-                    disabled={!lastBackup}
-                    className={cn(
-                      "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors",
-                      lastBackup 
-                        ? "hover:bg-orange-50 dark:hover:bg-orange-900/20 text-orange-700 dark:text-orange-400" 
-                        : "opacity-50 cursor-not-allowed text-zinc-500"
-                    )}
+                    onClick={handleBackup}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/10 dark:border-purple-400/10 text-purple-700 dark:text-purple-400 transition-all text-left group active:scale-98 cursor-pointer"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <div className="p-2 bg-purple-500 text-white rounded-lg group-hover:scale-105 transition-transform">
+                      <Save className="w-4 h-4" />
+                    </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold">Khôi phục trạng thái</span>
-                      <span className="text-xs opacity-80">
-                        {lastBackup 
-                          ? `Bản lưu: ${new Date(lastBackup.updatedAt).toLocaleTimeString('vi-VN')} (${lastBackup.hardCardIds.length} thẻ)` 
-                          : "Chưa có bản sao lưu nào"}
-                      </span>
+                      <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Lưu trạng thái hiện tại</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Ghi đè hoặc tạo mới bản sao lưu</span>
                     </div>
                   </button>
-                ) : (
-                  <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                    <div className="flex items-start gap-2 mb-2 text-orange-800 dark:text-orange-300">
-                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span className="text-xs font-medium">Hành động này sẽ ghi đè toàn bộ đánh dấu X hiện tại bằng bản sao lưu.</span>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+
+                  {!isConfirmingRestore ? (
+                    <button
+                      onClick={() => {
+                        if (lastBackup) {
+                          setIsConfirmingRestore(true);
+                        }
+                      }}
+                      disabled={!lastBackup}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group",
+                        lastBackup 
+                          ? "bg-orange-500/5 hover:bg-orange-500/10 border-orange-500/10 dark:border-orange-400/10 text-orange-700 dark:text-orange-400 active:scale-98 cursor-pointer" 
+                          : "bg-zinc-50 dark:bg-zinc-900/35 border-zinc-100 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                      )}
+                    >
+                      <div className={cn(
+                        "p-2 rounded-lg transition-transform",
+                        lastBackup ? "bg-orange-50 text-white group-hover:scale-105" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600"
+                      )}>
+                        <RotateCcw className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Khôi phục trạng thái</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {lastBackup 
+                            ? `Bản lưu: ${new Date(lastBackup.updatedAt).toLocaleTimeString('vi-VN')} ngày ${new Date(lastBackup.updatedAt).toLocaleDateString('vi-VN')} (${lastBackup.hardCardIds.length} thẻ)` 
+                            : "Chưa có bản sao lưu nào"}
+                        </span>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl space-y-3">
+                      <div className="flex items-start gap-2.5 text-orange-800 dark:text-orange-300">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-orange-500" />
+                        <span className="text-xs font-semibold leading-relaxed">
+                          Hành động này sẽ ghi đè toàn bộ trạng thái đánh dấu X hiện tại bằng bản sao lưu trước đó ({lastBackup?.hardCardIds.length} thẻ). Bạn có chắc chắn không?
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleRestore}
+                          className="flex-1 py-2 px-3 bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold rounded-lg transition-colors cursor-pointer shadow-sm shadow-orange-500/10"
+                        >
+                          Chắc chắn
+                        </button>
+                        <button
+                          onClick={() => setIsConfirmingRestore(false)}
+                          className="flex-1 py-2 px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-extrabold rounded-lg transition-colors cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleRestore}
-                        className="flex-1 py-1 px-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded"
-                      >
-                        Chắc chắn
-                      </button>
-                      <button
-                        onClick={() => setIsConfirmingRestore(false)}
-                        className="flex-1 py-1 px-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 text-xs font-bold rounded"
-                      >
-                        Hủy
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </motion.div>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }
